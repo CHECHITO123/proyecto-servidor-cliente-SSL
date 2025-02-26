@@ -1,0 +1,11 @@
+from servidor_ssl import ServidorSSL
+from cliente_ssl import ClienteSSL
+
+if __name__ == "__main__":
+    tipo = input("¿Desea iniciar el servidor (S) o el cliente (C)? ").strip().upper()
+    if tipo == "S":
+        ServidorSSL()
+    elif tipo == "C":
+        ClienteSSL()
+    else:
+        print("❌ Opción no válida.")
