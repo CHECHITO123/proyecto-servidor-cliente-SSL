@@ -1,0 +1,15 @@
+
+CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,  -- ID autoincremental
+            nombre TEXT NOT NULL UNIQUE,           -- Nombre de usuario único
+            contraseña TEXT NOT NULL               -- Contraseña encriptada
+        )
+    ''')
+    
+    conn.commit()  # Guarda los cambios en la base de datos
+    conn.close()  # Cierra la conexión
+    print("✅ Base de datos y tabla 'usuarios' creadas correctamente.")
+a la función para crear la base de datos
+inicializar_bd()
+
+
