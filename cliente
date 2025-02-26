@@ -1,0 +1,95 @@
+import ssl
+import socket
+import tkinter as tk
+from tkinter import messagebox
+
+# Configuración
+PUERTO = 5556
+SERVER_CERT = "server_cert.pem"
+
+class ClienteSSL:
+    def __init__(self, servidor="127.0.0.1", puerto=PUERTO):
+        self.servidor = servidor
+        self.puerto = puerto
+        self.ventana = tk.Tk()
+        self.ventana.title("Cliente SSL")
+        self.centrar_ventana(300, 200)
+        self.crear_interfaz()
+        self.ventana.mainloop()
+
+    def centrar_ventana(self, ancho, alto):
+        """Centrar ventana en pantalla"""
+        pantalla_ancho = self.ventana.winfo_screenwidth()
+        pantalla_alto = self.ventana.winfo_screenheight()
+        x = (pantalla_ancho // 2) - (ancho // 2)
+        y = (pantalla_alto // 2) - (alto // 2)
+        self.ventana.geometry(f"{ancho}x{alto}+{x}+{y}")
+
+    def crear_interfaz(self):
+        """Interfaz de login y registro"""
+        for widget in self.ventana.winfo_children():
+            widget.destroy()
+
+        tk.Label(self.ventana, text="Usuario:").pack(pady=5)
+        self.usuario_entry = tk.Entry(self.ventana)
+        self.usuario_entry.pack()
+        
+        tk.Label(self.ventana, text="Contraseña:").pack(pady=5)
+        self.password_entry = tk.Entry(self.ventana, show="*")
+        self.password_entry.pack()
+
+        tk.Button(self.ventana, text="Registrar", command=self.registrar_usuario).pack(pady=5)
+        tk.Button(self.ventana, text="Login", command=self.login_usuario).pack(pady=5)
+
+    def registrar_usuario(self):
+        usuario = self.usuario_entry.get()
+        password = self.password_entry.get()
+        if usuario and password:
+            respuesta = self.enviar_datos(f"REGISTER {usuario} {password}")
+            if "Registro correcto" in respuesta:
+                messagebox.showinfo("Registro", "Registro exitoso")
+                self.mostrar_interfaz_principal(usuario)
+            else:
+                messagebox.showerror("Error", respuesta)
+        else:
+            messagebox.showerror("Error", "Complete todos los campos")
+
+    def login_usuario(self):
+        usuario = self.usuario_entry.get()
+        password = self.password_entry.get()
+        if usuario and password:
+            respuesta = self.enviar_datos(f"LOGIN {usuario} {password}")
+            if "Login exitoso" in respuesta:
+                messagebox.showinfo("Login", "Acceso concedido")
+                self.mostrar_interfaz_principal(usuario)
+            else:
+                messagebox.showerror("Error", respuesta)
+
+    def mostrar_interfaz_principal(self, usuario):
+        """Cambia la interfaz a opciones después de iniciar sesión"""
+        for widget in self.ventana.winfo_children():
+            widget.destroy()
+
+        tk.Label(self.ventana, text=f"¡Bienvenido, {usuario}!").pack(pady=10)
+        tk.Button(self.ventana, text="Enviar Saludo", command=lambda: self.enviar_saludo(usuario)).pack(pady=10)
+        tk.Button(self.ventana, text="Cerrar Sesión", command=self.ventana.quit).pack(pady=5)  # Cierra la interfaz
+
+    def enviar_saludo(self, usuario):
+        respuesta = self.enviar_datos(f"SALUDO {usuario}")
+        if respuesta:
+            messagebox.showinfo("Saludo", "Saludo enviado con éxito")
+
+    def enviar_datos(self, comando):
+        try:
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            with socket.create_connection((self.servidor, self.puerto)) as sock:
+                with context.wrap_socket(sock, server_hostname=self.servidor) as cliente_ssl:
+                    cliente_ssl.sendall(comando.encode("utf-8"))
+                    return cliente_ssl.recv(4096).decode("utf-8")
+        except Exception as e:
+            return f"Error de conexión: {e}"
+
+if __name__ == "__main__":
+    ClienteSSL()
