@@ -1,0 +1,89 @@
+import ssl
+import socket
+import threading
+import os
+
+# Configuración
+PUERTO = 5556
+CERTIFICADO = "server_cert.pem"
+CLAVE_PRIVADA = "server_key.pem"
+ARCHIVO_USUARIOS = "usuarios.txt"
+
+# Crear archivos de usuarios si no existe
+if not os.path.exists(ARCHIVO_USUARIOS):
+    open(ARCHIVO_USUARIOS, "w").close()
+
+class ServidorSSL:
+    def __init__(self, puerto=PUERTO):
+        self.puerto = puerto
+        self.usuarios = self.cargar_usuarios()
+        self.iniciar_servidor()
+
+    def cargar_usuarios(self):
+        """Carga los usuarios desde el archivo."""
+        usuarios = {}
+        with open(ARCHIVO_USUARIOS, "r") as f:
+            for linea in f:
+                usuario, password = linea.strip().split(":")
+                usuarios[usuario] = password
+        return usuarios
+
+    def guardar_usuario(self, usuario, password):
+        """Guarda un nuevo usuario en el archivo."""
+        with open(ARCHIVO_USUARIOS, "a") as f:
+            f.write(f"{usuario}:{password}\n")
+
+    def manejar_cliente(self, cliente_ssl):
+        """Maneja las solicitudes de cada cliente conectado."""
+        try:
+            while True:
+                data = cliente_ssl.recv(1024).decode("utf-8").strip()
+                if not data:
+                    break
+
+                comando, *args = data.split()
+
+                if comando == "REGISTER" and len(args) == 2:
+                    usuario, password = args
+                    if usuario in self.usuarios:
+                        cliente_ssl.sendall("Error: Usuario ya existe.".encode("utf-8"))
+                    else:
+                        self.usuarios[usuario] = password
+                        self.guardar_usuario(usuario, password)
+                        cliente_ssl.sendall("Registro correcto".encode("utf-8"))
+
+                elif comando == "LOGIN" and len(args) == 2:
+                    usuario, password = args
+                    if usuario in self.usuarios and self.usuarios[usuario] == password:
+                        cliente_ssl.sendall("Login exitoso".encode("utf-8"))
+                    else:
+                        cliente_ssl.sendall("Error: Credenciales incorrectas.".encode("utf-8"))
+
+                elif comando == "SALUDO" and len(args) == 1:
+                    usuario = args[0]
+                    print(f"👋 {usuario} ha enviado un saludo.")
+                    cliente_ssl.sendall(f"¡Hola {usuario}, bienvenido al servidor!".encode("utf-8"))
+
+        except Exception as e:
+            print(f"⚠️ Error al manejar cliente: {e}")
+        finally:
+            cliente_ssl.close()
+
+    def iniciar_servidor(self):
+        """Inicia el servidor SSL."""
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(certfile=CERTIFICADO, keyfile=CLAVE_PRIVADA)
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as servidor:
+            servidor.bind(("0.0.0.0", self.puerto))
+            servidor.listen(5)
+            print(f"✅ Servidor SSL iniciado en el puerto {self.puerto}")
+
+            while True:
+                cliente, addr = servidor.accept()
+                cliente_ssl = context.wrap_socket(cliente, server_side=True)
+                threading.Thread(target=self.manejar_cliente, args=(cliente_ssl,)).start()
+
+
+if __name__ == "__main__":
+    ServidorSSL()
